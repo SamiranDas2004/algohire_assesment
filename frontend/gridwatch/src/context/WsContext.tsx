@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useRef, type ReactNode } from 're
 import { io, Socket } from 'socket.io-client';
 import type { SensorStateEvent } from '../types';
 
+
 type StateChangeHandler = (event: SensorStateEvent) => void;
 
 interface WsContextValue {
