@@ -37,7 +37,8 @@ export function zoneScopeSQL(
   sensorAlias = 's',
   paramOffset = 0
 ): { clause: string; params: string[] } {
-  if (user.role === 'supervisor' || user.zoneIds.length === 0) return { clause: '', params: [] };
+  if (user.role === 'supervisor') return { clause: '', params: [] };
+  if (user.zoneIds.length === 0) return { clause: 'AND 1=0', params: [] };
   const placeholders = user.zoneIds.map((_, i) => `$${i + 1 + paramOffset}`).join(', ');
   return {
     clause: `AND ${sensorAlias}.zone_id IN (${placeholders})`,
