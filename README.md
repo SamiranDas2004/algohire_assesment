@@ -111,7 +111,7 @@ Three workers run independently on server boot:
 
 - **silenceWorker** — runs every 30 seconds, finds sensors with `last_seen_at` older than 2 minutes, creates `pattern_absence` anomaly and marks sensor `silent`
 - **escalationWorker** — runs every 30 seconds, finds critical open alerts older than 5 minutes that have not been escalated, reassigns to supervisor, writes to `escalation_log`
-- **simulatorWorker** — runs every 10 seconds, sends realistic readings for 50 random sensors with occasional anomaly injections so the system demonstrates live behavior without manual input
+- **simulatorWorker** — runs every 30 seconds, sends realistic readings for 50 random sensors with occasional anomaly injections so the system demonstrates live behavior without manual input
 
 ### Tech stack
 
@@ -207,7 +207,7 @@ End-to-end latency from ingest to dashboard update is typically under 500ms in l
 - Live sensor dashboard with real-time status updates
 - Alert management panel with acknowledge/resolve and audit trail
 - Sensor detail view with active anomalies, readings, suppression status
-- Sensor simulator that auto-generates readings every 10 seconds
+- Sensor simulator that auto-generates readings every 30 seconds
 - Docker Compose setup with schema auto-applied on first boot
 - Seed script with 1002 sensors across 3 zones, 2 operators, 1 supervisor, 48h of readings
 
