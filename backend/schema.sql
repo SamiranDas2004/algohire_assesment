@@ -1,15 +1,11 @@
--- GridWatch Schema
-
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
--- Zones
 CREATE TABLE zones (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name TEXT NOT NULL UNIQUE,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- Users (operators + supervisors)
 CREATE TABLE users (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   email TEXT NOT NULL UNIQUE,
@@ -20,14 +16,12 @@ CREATE TABLE users (
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- Zone assignments (operators only — supervisors have global access)
 CREATE TABLE zone_assignments (
   user_id UUID NOT NULL REFERENCES users(id),
   zone_id UUID NOT NULL REFERENCES zones(id),
   PRIMARY KEY (user_id, zone_id)
 );
 
--- Sensors
 CREATE TABLE sensors (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name TEXT NOT NULL,
@@ -40,7 +34,6 @@ CREATE TABLE sensors (
 CREATE INDEX idx_sensors_zone ON sensors(zone_id);
 CREATE INDEX idx_sensors_last_seen ON sensors(last_seen_at);
 
--- Per-sensor detection rules
 CREATE TABLE sensor_rules (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   sensor_id UUID NOT NULL REFERENCES sensors(id),
@@ -55,7 +48,6 @@ CREATE TABLE sensor_rules (
 
 CREATE INDEX idx_sensor_rules_sensor ON sensor_rules(sensor_id);
 
--- Raw readings
 CREATE TABLE readings (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   sensor_id UUID NOT NULL REFERENCES sensors(id),
@@ -70,7 +62,6 @@ CREATE TABLE readings (
 CREATE INDEX idx_readings_sensor_ts ON readings(sensor_id, timestamp DESC);
 CREATE INDEX idx_readings_ts ON readings(timestamp DESC);
 
--- Ingest queue for async processing (durable buffer)
 CREATE TABLE ingest_queue (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   payload JSONB NOT NULL,
@@ -83,7 +74,6 @@ CREATE TABLE ingest_queue (
 
 CREATE INDEX idx_ingest_queue_status ON ingest_queue(status) WHERE status IN ('pending', 'failed');
 
--- Anomalies
 CREATE TABLE anomalies (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   sensor_id UUID NOT NULL REFERENCES sensors(id),
@@ -99,7 +89,6 @@ CREATE INDEX idx_anomalies_sensor ON anomalies(sensor_id);
 CREATE INDEX idx_anomalies_reading ON anomalies(reading_id);
 CREATE INDEX idx_anomalies_created ON anomalies(created_at DESC);
 
--- Alerts
 CREATE TABLE alerts (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   anomaly_id UUID NOT NULL REFERENCES anomalies(id),
@@ -117,10 +106,8 @@ CREATE TABLE alerts (
 CREATE INDEX idx_alerts_sensor ON alerts(sensor_id);
 CREATE INDEX idx_alerts_status ON alerts(status);
 CREATE INDEX idx_alerts_created ON alerts(created_at DESC);
--- For escalation job: find critical open non-escalated alerts older than 5 min
 CREATE INDEX idx_alerts_escalation ON alerts(created_at) WHERE status = 'open' AND severity = 'critical' AND escalated = FALSE;
 
--- Alert audit log (append-only)
 CREATE TABLE alert_audit_log (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   alert_id UUID NOT NULL REFERENCES alerts(id),
@@ -133,7 +120,6 @@ CREATE TABLE alert_audit_log (
 
 CREATE INDEX idx_audit_alert ON alert_audit_log(alert_id);
 
--- Escalation log
 CREATE TABLE escalation_log (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   alert_id UUID NOT NULL REFERENCES alerts(id) UNIQUE,
@@ -141,7 +127,6 @@ CREATE TABLE escalation_log (
   escalated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- Suppressions
 CREATE TABLE suppressions (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   sensor_id UUID NOT NULL REFERENCES sensors(id),

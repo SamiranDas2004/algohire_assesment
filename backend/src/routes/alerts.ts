@@ -10,7 +10,6 @@ const VALID_TRANSITIONS: Record<string, string[]> = {
   resolved: [],
 };
 
-// GET /alerts — paginated, filtered, zone-scoped
 alertsRouter.get('/', authenticate, async (req: AuthRequest, res: Response): Promise<void> => {
   const user = req.user!;
   const status = req.query.status as string | undefined;
@@ -61,7 +60,6 @@ alertsRouter.get('/', authenticate, async (req: AuthRequest, res: Response): Pro
   });
 });
 
-// GET /alerts/:id
 alertsRouter.get('/:id', authenticate, async (req: AuthRequest, res: Response): Promise<void> => {
   const user = req.user!;
   const { clause, params } = zoneScopeSQL(user, 's', 1);
@@ -81,7 +79,6 @@ alertsRouter.get('/:id', authenticate, async (req: AuthRequest, res: Response): 
   res.json(result.rows[0]);
 });
 
-// PATCH /alerts/:id — status transition
 alertsRouter.patch('/:id', authenticate, async (req: AuthRequest, res: Response): Promise<void> => {
   const user = req.user!;
   const { status, note } = req.body;
@@ -119,15 +116,12 @@ alertsRouter.patch('/:id', authenticate, async (req: AuthRequest, res: Response)
       [status, alert.id]
     );
 
-    // Append-only audit log
     await client.query(
       `INSERT INTO alert_audit_log (alert_id, changed_by, from_status, to_status, note)
        VALUES ($1, $2, $3, $4, $5)`,
       [alert.id, user.userId, alert.status, status, note || null]
     );
 
-    // If resolving — check if sensor has any remaining open/acknowledged alerts
-    // If none remain, set sensor status back to healthy
     if (status === 'resolved') {
       const remaining = await client.query(
         `SELECT COUNT(*) FROM alerts
@@ -139,14 +133,12 @@ alertsRouter.patch('/:id', authenticate, async (req: AuthRequest, res: Response)
           `UPDATE sensors SET status = 'healthy' WHERE id = $1`,
           [alert.sensor_id]
         );
-        // Publish state change so dashboard updates in real time
         const sensorResult = await client.query(
           `SELECT zone_id FROM sensors WHERE id = $1`,
           [alert.sensor_id]
         );
         if (sensorResult.rows[0]) {
           const { zone_id } = sensorResult.rows[0];
-          // Import redis inline to avoid circular deps
           const { redis } = await import('../lib/redis');
           await redis.publish(
             `zone:${zone_id}:sensor_state`,
@@ -166,7 +158,6 @@ alertsRouter.patch('/:id', authenticate, async (req: AuthRequest, res: Response)
   }
 });
 
-// GET /alerts/:id/audit — audit trail for an alert
 alertsRouter.get('/:id/audit', authenticate, async (req: AuthRequest, res: Response): Promise<void> => {
   const user = req.user!;
   const { clause, params } = zoneScopeSQL(user, 's', 1);

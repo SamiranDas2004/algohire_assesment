@@ -25,14 +25,12 @@ export function initWebSocket(httpServer: HttpServer): SocketServer {
   io.on('connection', async (socket) => {
     const user: JwtPayload = socket.data.user;
 
-    // Determine which zones this user can see
     let zoneIds: string[] = user.zoneIds;
     if (user.role === 'supervisor') {
       const result = await db.query('SELECT id FROM zones');
       zoneIds = result.rows.map((r: { id: string }) => r.id);
     }
 
-    // Join a room per zone so we can broadcast efficiently
     for (const zoneId of zoneIds) {
       socket.join(`zone:${zoneId}`);
     }
@@ -40,22 +38,18 @@ export function initWebSocket(httpServer: HttpServer): SocketServer {
     socket.emit('connected', { userId: user.userId, zones: zoneIds });
   });
 
-  // Subscribe to Redis pub/sub for all zone channels
-  // One subscription handles all zones — pattern subscribe
   redisSub.psubscribe('zone:*:sensor_state', (err) => {
     if (err) console.error('[ws] Redis psubscribe error:', err);
     else console.log('[ws] Subscribed to zone sensor state channels');
   });
 
   redisSub.on('pmessage', (_pattern: string, channel: string, message: string) => {
-    // channel format: zone:<zoneId>:sensor_state
     const parts = channel.split(':');
     const zoneId = parts[1];
     if (!zoneId) return;
 
     try {
       const data = JSON.parse(message);
-      // Emit only to sockets in that zone's room
       io.to(`zone:${zoneId}`).emit('sensor_state_change', data);
     } catch {
       console.error('[ws] Failed to parse message:', message);

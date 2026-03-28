@@ -3,7 +3,6 @@ import { db } from '../lib/db';
 import { redis } from '../lib/redis';
 import { IngestReading, SensorRule } from '../lib/types';
 
-// Check if sensor is currently suppressed
 async function isSuppressed(client: PoolClient, sensorId: string, at: string): Promise<boolean> {
   const result = await client.query(
     `SELECT 1 FROM suppressions
@@ -14,7 +13,6 @@ async function isSuppressed(client: PoolClient, sensorId: string, at: string): P
   return result.rows.length > 0;
 }
 
-// Get last 3 readings for rate-of-change calculation
 async function getLastReadings(
   client: PoolClient,
   sensorId: string,
@@ -68,7 +66,6 @@ async function updateSensorStatus(
     [newStatus, timestamp, sensorId]
   );
 
-  // Only publish if status actually changed
   if (result.rows[0]) {
     const { zone_id } = result.rows[0];
     await redis.publish(
@@ -76,7 +73,6 @@ async function updateSensorStatus(
       JSON.stringify({ sensor_id: sensorId, status: newStatus, timestamp })
     );
   } else {
-    // Still update last_seen_at even if status unchanged
     await client.query(
       `UPDATE sensors SET last_seen_at = $1 WHERE id = $2`,
       [timestamp, sensorId]
@@ -91,7 +87,6 @@ export async function processIngestBatch(queueId: string, readings: IngestReadin
     await client.query(`UPDATE ingest_queue SET status = 'processing', attempts = attempts + 1 WHERE id = $1`, [queueId]);
 
     for (const reading of readings) {
-      // Insert raw reading
       const readingResult = await client.query(
         `INSERT INTO readings (sensor_id, timestamp, voltage, current, temperature, status_code)
          VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
@@ -99,7 +94,6 @@ export async function processIngestBatch(queueId: string, readings: IngestReadin
       );
       const readingId = readingResult.rows[0].id;
 
-      // Fetch rules for this sensor
       const rulesResult = await client.query<SensorRule>(
         `SELECT * FROM sensor_rules WHERE sensor_id = $1`,
         [reading.sensor_id]

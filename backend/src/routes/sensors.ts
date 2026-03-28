@@ -4,7 +4,6 @@ import { authenticate, AuthRequest, zoneScopeSQL } from '../middleware/auth';
 
 export const sensorsRouter = Router();
 
-// GET /sensors — zone-scoped sensor list
 sensorsRouter.get('/', authenticate, async (req: AuthRequest, res: Response): Promise<void> => {
   const user = req.user!;
   const { clause, params } = zoneScopeSQL(user, 's', 0);
@@ -20,7 +19,6 @@ sensorsRouter.get('/', authenticate, async (req: AuthRequest, res: Response): Pr
   res.json(result.rows);
 });
 
-// GET /sensors/:id — single sensor (zone-scoped)
 sensorsRouter.get('/:id', authenticate, async (req: AuthRequest, res: Response): Promise<void> => {
   const user = req.user!;
   const { clause, params } = zoneScopeSQL(user, 's', 1);
@@ -39,8 +37,6 @@ sensorsRouter.get('/:id', authenticate, async (req: AuthRequest, res: Response):
   res.json(result.rows[0]);
 });
 
-// GET /sensors/:id/history — paginated readings with anomaly + alert flags
-// Performance: uses (sensor_id, timestamp DESC) index + keyset pagination
 sensorsRouter.get('/:id/history', authenticate, async (req: AuthRequest, res: Response): Promise<void> => {
   const user = req.user!;
   const sensorId = req.params.id;
@@ -55,7 +51,6 @@ sensorsRouter.get('/:id/history', authenticate, async (req: AuthRequest, res: Re
     return;
   }
 
-  // Zone isolation at data layer
   const { clause, params } = zoneScopeSQL(user, 's', 1);
   const scopeCheck = await db.query(
     `SELECT 1 FROM sensors s WHERE s.id = $1 ${clause}`,
@@ -119,7 +114,6 @@ sensorsRouter.get('/:id/history', authenticate, async (req: AuthRequest, res: Re
   });
 });
 
-// POST /sensors/:id/suppress — create suppression window
 sensorsRouter.post('/:id/suppress', authenticate, async (req: AuthRequest, res: Response): Promise<void> => {
   const user = req.user!;
   const sensorId = req.params.id;
@@ -142,7 +136,6 @@ sensorsRouter.post('/:id/suppress', authenticate, async (req: AuthRequest, res: 
     return;
   }
 
-  // Zone isolation check
   const { clause, params } = zoneScopeSQL(user, 's', 1);
   const scopeCheck = await db.query(
     `SELECT 1 FROM sensors s WHERE s.id = $1 ${clause}`,
@@ -162,7 +155,6 @@ sensorsRouter.post('/:id/suppress', authenticate, async (req: AuthRequest, res: 
   res.status(201).json(result.rows[0]);
 });
 
-// GET /sensors/:id/suppressions — active suppressions for a sensor
 sensorsRouter.get('/:id/suppressions', authenticate, async (req: AuthRequest, res: Response): Promise<void> => {
   const user = req.user!;
   const sensorId = req.params.id;

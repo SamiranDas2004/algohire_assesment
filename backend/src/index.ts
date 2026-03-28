@@ -34,7 +34,7 @@ initWebSocket(httpServer);
 const PORT = parseInt(process.env.PORT || '4000');
 
 async function start(): Promise<void> {
-  await db.query('SELECT 1'); // verify DB connection
+  await db.query('SELECT 1');
 
   httpServer.listen(PORT, () => {
     console.log(`[server] GridWatch backend running on port ${PORT}`);

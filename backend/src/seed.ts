@@ -2,7 +2,7 @@ import { db } from './lib/db';
 import bcrypt from 'bcryptjs';
 
 const ZONES = ['Zone Alpha', 'Zone Beta', 'Zone Gamma'];
-const SENSORS_PER_ZONE = 334; // ~1000 total
+const SENSORS_PER_ZONE = 334;
 const READINGS_HOURS = 48;
 const READING_INTERVAL_SECONDS = 10;
 
@@ -13,7 +13,6 @@ async function seed(): Promise<void> {
   try {
     await client.query('BEGIN');
 
-    // Zones
     const zoneIds: string[] = [];
     for (const name of ZONES) {
       const r = await client.query(
@@ -24,7 +23,6 @@ async function seed(): Promise<void> {
     }
     console.log('[seed] Zones created:', zoneIds.length);
 
-    // Supervisor
     const supHash = await bcrypt.hash('supervisor123', 10);
     const supResult = await client.query(
       `INSERT INTO users (email, password_hash, name, role)
@@ -34,7 +32,6 @@ async function seed(): Promise<void> {
     );
     const supervisorId = supResult.rows[0].id;
 
-    // Operators — one per zone (zone 0 and zone 1)
     const operatorIds: string[] = [];
     for (let i = 0; i < 2; i++) {
       const hash = await bcrypt.hash(`operator${i + 1}123`, 10);
@@ -52,7 +49,6 @@ async function seed(): Promise<void> {
     }
     console.log('[seed] Users created');
 
-    // Sensors + rules
     const sensorIds: { id: string; zoneId: string }[] = [];
     for (let z = 0; z < zoneIds.length; z++) {
       for (let s = 0; s < SENSORS_PER_ZONE; s++) {
@@ -64,19 +60,16 @@ async function seed(): Promise<void> {
         const sensorId = r.rows[0].id;
         sensorIds.push({ id: sensorId, zoneId: zoneIds[z] });
 
-        // Threshold rule (voltage)
         await client.query(
           `INSERT INTO sensor_rules (sensor_id, rule_type, metric, min_value, max_value, severity)
            VALUES ($1, 'threshold', 'voltage', 200, 250, 'critical')`,
           [sensorId]
         );
-        // Threshold rule (temperature)
         await client.query(
           `INSERT INTO sensor_rules (sensor_id, rule_type, metric, min_value, max_value, severity)
            VALUES ($1, 'threshold', 'temperature', 0, 85, 'warning')`,
           [sensorId]
         );
-        // Rate-of-change rule
         await client.query(
           `INSERT INTO sensor_rules (sensor_id, rule_type, metric, change_percent, severity)
            VALUES ($1, 'rate_of_change', 'voltage', 20, 'warning')`,
@@ -86,18 +79,15 @@ async function seed(): Promise<void> {
     }
     console.log('[seed] Sensors + rules created:', sensorIds.length);
 
-    // Mark ALL sensors as healthy with last_seen_at = NOW() so silence worker doesn't fire on seed data
     await client.query(`UPDATE sensors SET last_seen_at = NOW(), status = 'healthy'`);
 
     await client.query('COMMIT');
 
-    // Insert readings in batches (outside transaction for performance)
     console.log('[seed] Inserting readings (this may take a minute)...');
     const now = Date.now();
     const totalReadings = READINGS_HOURS * 3600 / READING_INTERVAL_SECONDS;
     const BATCH_SIZE = 500;
 
-    // Seed readings for first 50 sensors to keep seed time reasonable
     const seedSensors = sensorIds.slice(0, 50);
 
     for (const sensor of seedSensors) {
@@ -135,7 +125,6 @@ async function seed(): Promise<void> {
         );
       }
 
-      // Keep last_seen_at fresh for sensors with readings
       await db.query(
         `UPDATE sensors SET last_seen_at = NOW(), status = 'healthy' WHERE id = $1`,
         [sensor.id]

@@ -30,8 +30,6 @@ export function requireSupervisor(req: AuthRequest, res: Response, next: NextFun
   next();
 }
 
-// Returns SQL fragment + params for zone-scoped sensor filtering
-// Supervisors get all sensors; operators get only their zones
 export function zoneScopeSQL(
   user: JwtPayload,
   sensorAlias = 's',
