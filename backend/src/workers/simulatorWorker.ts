@@ -2,7 +2,7 @@ import { db } from '../lib/db';
 import { processIngestBatch } from './anomalyWorker';
 import { IngestReading } from '../lib/types';
 
-const INTERVAL_MS = 10_000;
+const INTERVAL_MS = 30_000;
 const SENSORS_PER_TICK = 50;
 
 const VOLTAGE_SPIKE_CHANCE = 0.05;
